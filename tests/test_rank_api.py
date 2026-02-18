@@ -4,55 +4,63 @@ Validates request/response schemas, authentication, and ranking behavior.
 """
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.config import Settings
+
+@pytest.fixture(autouse=True)
+def clear_settings_cache():
+    """Clear the lru_cache on get_settings before each test."""
+    from app.config import get_settings
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture
-def settings():
-    return Settings(
-        app_env="test",
-        jwt_secret_key="test-secret",
-        api_key="test-api-key",
-        model_device="cpu",
-        enable_tracing=False,
-    )
-
-
-@pytest.fixture
-def mock_app(settings):
+def mock_app():
     """Create a test application with mocked model components."""
-    with patch("app.main.get_settings", return_value=settings):
-        from app.main import create_app
+    import os
+    os.environ["APP_ENV"] = "test"
+    os.environ["JWT_SECRET_KEY"] = "test-secret"
+    os.environ["API_KEY"] = "test-api-key"
+    os.environ["MODEL_DEVICE"] = "cpu"
+    os.environ["ENABLE_TRACING"] = "false"
 
-        app = create_app()
+    # Re-import to pick up new env vars
+    from app.config import get_settings
+    get_settings.cache_clear()
 
-        # Mock the application state
-        mock_registry = MagicMock()
-        mock_registry.list_versions.return_value = ["v1"]
-        mock_registry.active_version = "v1"
+    from app.main import create_app
+    app = create_app()
 
-        mock_server = MagicMock()
-        mock_server.is_ready.return_value = True
-        mock_server.current_version = "v1"
+    # Mock the application state
+    mock_registry = MagicMock()
+    mock_registry.list_versions.return_value = ["v1"]
+    mock_registry.active_version = "v1"
 
-        mock_batcher = MagicMock()
-        mock_batcher.is_running.return_value = True
-        mock_batcher.queue_size = 0
-        mock_batcher.submit = AsyncMock(return_value=[0.95, 0.82, 0.67])
+    mock_server = MagicMock()
+    mock_server.is_ready.return_value = True
+    mock_server.current_version = "v1"
 
-        mock_metrics = MagicMock()
+    mock_batcher = MagicMock()
+    mock_batcher.is_running.return_value = True
+    mock_batcher.queue_size = 0
+    mock_batcher.submit = AsyncMock(return_value=[0.95, 0.82, 0.67])
 
-        app.state.model_registry = mock_registry
-        app.state.model_server = mock_server
-        app.state.dynamic_batcher = mock_batcher
-        app.state.metrics = mock_metrics
+    mock_metrics = MagicMock()
 
-        return app
+    app.state.model_registry = mock_registry
+    app.state.model_server = mock_server
+    app.state.dynamic_batcher = mock_batcher
+    app.state.metrics = mock_metrics
+
+    yield app
+
+    # Cleanup env vars
+    for key in ["APP_ENV", "JWT_SECRET_KEY", "API_KEY", "MODEL_DEVICE", "ENABLE_TRACING"]:
+        os.environ.pop(key, None)
 
 
 @pytest.fixture

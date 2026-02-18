@@ -9,7 +9,23 @@ from typing import Optional
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from jose import jwt, JWTError
+try:
+    from jose import jwt, JWTError
+except Exception:
+    # Fallback to PyJWT if python-jose has cryptography issues
+    import jwt as _pyjwt
+
+    class _JWTCompat:
+        @staticmethod
+        def decode(token, key, algorithms):
+            return _pyjwt.decode(token, key, algorithms=algorithms)
+
+        @staticmethod
+        def encode(payload, key, algorithm):
+            return _pyjwt.encode(payload, key, algorithm=algorithm)
+
+    jwt = _JWTCompat()
+    JWTError = Exception
 
 from app.observability.logging import get_logger
 
