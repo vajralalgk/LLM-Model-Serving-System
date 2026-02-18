@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+*.env.local
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+test-results.xml
+
+# ML Models (cached)
+models/
+*.pt
+*.bin
+*.onnx
+*.safetensors
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Generated docs
+docs/generated/
+*.pptx
+*.docx

@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ranking-service-monitor
+  namespace: llm-serving
+  labels:
+    app: ranking-service
+spec:
+  selector:
+    matchLabels:
+      app: ranking-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s

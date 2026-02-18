@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-serving
+  labels:
+    app: llm-ranking-service
+    managed-by: kubectl

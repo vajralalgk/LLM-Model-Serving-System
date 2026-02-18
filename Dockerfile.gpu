@@ -1,0 +1,47 @@
+# =============================================================================
+# GPU-enabled Dockerfile for LLM Ranking Service
+# Author: Gopi Krishna Vajrala
+# Uses NVIDIA CUDA base image for GPU-accelerated inference
+# =============================================================================
+
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Install Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 python3.11-venv python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python
+
+# Security: non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app/ ./app/
+COPY .env.example .env
+
+RUN mkdir -p /app/models && chown -R appuser:appuser /app
+
+USER appuser
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    MODEL_DEVICE=cuda \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+CMD ["gunicorn", "app.main:app", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--workers", "2", \
+     "--bind", "0.0.0.0:8000", \
+     "--timeout", "120", \
+     "--graceful-timeout", "30"]

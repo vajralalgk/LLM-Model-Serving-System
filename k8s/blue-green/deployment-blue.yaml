@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ranking-service-blue
+  namespace: llm-serving
+  labels:
+    app: ranking-service
+    slot: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ranking-service
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: ranking-service
+        slot: blue
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: ranking-service
+          image: llm-ranking-service:v1
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: ranking-service-config
+            - secretRef:
+                name: ranking-service-secrets
+          env:
+            - name: MODEL_VERSION
+              value: "v1"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
